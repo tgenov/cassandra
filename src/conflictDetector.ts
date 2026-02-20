@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { getConfig } from './config';
-import { gitVersion, gitFetch, gitRevParse, gitMergeBase, gitMergeTreeModern, gitMergeTreeLegacy, supportsModernMergeTree, gitStatusTracked, gitUpstream, gitMergeFF, gitRevListCount } from './gitOps';
+import { gitVersion, gitFetch, gitRevParse, gitMergeBase, gitMergeTreeModern, gitMergeTreeLegacy, supportsModernMergeTree, gitStatusTracked, gitStashCreate, gitUpstream, gitPullRebase, gitRevListCount } from './gitOps';
 import { parseModernMergeTree, parseLegacyMergeTree } from './mergeTreeParser';
 import { ConflictState } from './conflictState';
 import type { ConflictSnapshot, StateChange } from './conflictState';
@@ -21,6 +21,7 @@ export class ConflictDetector implements vscode.Disposable {
   private readonly cwd: string;
   private readonly resolvedFiles = new Set<string>();
   private lastRawFilepaths: string[] = [];
+  private lastHeadTree: string = '';
 
   constructor(cwd: string) {
     this.cwd = cwd;
@@ -105,7 +106,7 @@ export class ConflictDetector implements vscode.Disposable {
         return;
       }
 
-      // Step 3.5: Auto-pull (fast-forward current branch from its upstream)
+      // Step 3.5: Auto-pull (rebase current branch onto its upstream)
       if (config.autoPull) {
         try {
           const upstreamResult = await gitUpstream(this.cwd);
@@ -116,28 +117,49 @@ export class ConflictDetector implements vscode.Disposable {
             if (head === upstreamSha) {
               // Already up to date, nothing to pull
             } else {
-              const statusResult = await gitStatusTracked(this.cwd);
-              if (statusResult.stdout.trim() !== '') {
-                log('Auto-pull: tracked files have uncommitted changes, skipping');
+              const oldHead = head;
+              const rebaseResult = await gitPullRebase(this.cwd);
+              if (rebaseResult.exitCode === 0) {
+                const newHeadResult = await gitRevParse(this.cwd, 'HEAD');
+                head = newHeadResult.stdout.trim();
+                const countResult = await gitRevListCount(this.cwd, oldHead, head);
+                const commitCount = parseInt(countResult.stdout.trim(), 10) || 0;
+                log(`Auto-pull: rebased ${commitCount} commit(s), new HEAD: ${head}`);
+                this._onAutoPulled.fire({ commitCount, newHead: head });
               } else {
-                const oldHead = head;
-                const mergeResult = await gitMergeFF(this.cwd);
-                if (mergeResult.exitCode === 0) {
-                  const newHeadResult = await gitRevParse(this.cwd, 'HEAD');
-                  head = newHeadResult.stdout.trim();
-                  const countResult = await gitRevListCount(this.cwd, oldHead, head);
-                  const commitCount = parseInt(countResult.stdout.trim(), 10) || 0;
-                  log(`Auto-pull: fast-forwarded ${commitCount} commit(s), new HEAD: ${head}`);
-                  this._onAutoPulled.fire({ commitCount, newHead: head });
-                } else {
-                  log('Auto-pull: cannot fast-forward, skipping');
-                }
+                log('Auto-pull: rebase failed, skipping');
               }
             }
           }
         } catch (err) {
           logError('Auto-pull failed, continuing with conflict check', err);
         }
+      }
+
+      // Step 3.9: Use working tree state if tracked files are dirty
+      let dirtyTreeUsed = false;
+      try {
+        const trackedStatus = await gitStatusTracked(this.cwd);
+        if (trackedStatus.stdout.trim() !== '') {
+          const stashResult = await gitStashCreate(this.cwd);
+          const stashSha = stashResult.stdout.trim();
+          if (stashSha) {
+            log(`Working tree is dirty, using stash-create SHA: ${stashSha.slice(0, 8)}`);
+            head = stashSha;
+            dirtyTreeUsed = true;
+          }
+        }
+      } catch (err) {
+        logError('stash-create failed, falling back to HEAD', err);
+      }
+
+      // Resolve tree SHA for resolved-files tracking (stable across identical content)
+      let headTree = head;
+      try {
+        const treeResult = await gitRevParse(this.cwd, `${head}^{tree}`);
+        headTree = treeResult.stdout.trim();
+      } catch {
+        // fallback: use commit SHA as-is
       }
 
       // Step 4: merge-tree
@@ -152,6 +174,7 @@ export class ConflictDetector implements vscode.Disposable {
             status: parsed.hasConflicts ? 'conflicts' : 'clean',
             conflictFiles: parsed.conflictFiles,
             toplevelTreeOid: parsed.toplevelTreeOid,
+            dirtyTreeUsed,
           };
         } else {
           const baseResult = await gitMergeBase(this.cwd, head, remote);
@@ -163,17 +186,20 @@ export class ConflictDetector implements vscode.Disposable {
             status: parsed.hasConflicts ? 'conflicts' : 'clean',
             conflictFiles: parsed.conflictFiles,
             toplevelTreeOid: parsed.toplevelTreeOid,
+            dirtyTreeUsed,
           };
         }
 
         // Track raw conflict set; clear resolved files when git state changes
         const rawFilepaths = snapshot.conflictFiles.map(f => f.filepath).sort();
-        if (
+        const headTreeChanged = headTree !== this.lastHeadTree;
+        const fileSetChanged =
           rawFilepaths.length !== this.lastRawFilepaths.length ||
-          rawFilepaths.some((fp, i) => fp !== this.lastRawFilepaths[i])
-        ) {
+          rawFilepaths.some((fp, i) => fp !== this.lastRawFilepaths[i]);
+        if (headTreeChanged || fileSetChanged) {
           this.resolvedFiles.clear();
         }
+        this.lastHeadTree = headTree;
         this.lastRawFilepaths = rawFilepaths;
 
         // Filter out user-resolved files

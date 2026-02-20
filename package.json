@@ -12,6 +12,7 @@
   "activationEvents": [
     "workspaceContains:.git"
   ],
+  "extensionKind": ["workspace"],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [

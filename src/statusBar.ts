@@ -14,10 +14,10 @@ export class StatusBar implements vscode.Disposable {
   update(snapshot: ConflictSnapshot): void {
     switch (snapshot.status) {
       case 'clean':
-        this.setClean();
+        this.setClean(snapshot.dirtyTreeUsed);
         break;
       case 'conflicts':
-        this.setConflicts(snapshot.conflictFiles.length);
+        this.setConflicts(snapshot.conflictFiles.length, snapshot.dirtyTreeUsed);
         break;
       case 'error':
         this.setError(snapshot.errorMessage);
@@ -31,16 +31,18 @@ export class StatusBar implements vscode.Disposable {
     }
   }
 
-  private setClean(): void {
+  private setClean(dirtyTreeUsed?: boolean): void {
     this.item.text = '$(check) No conflicts';
     this.item.backgroundColor = undefined;
-    this.item.tooltip = 'Conflict Watcher: No conflicts detected';
+    const suffix = dirtyTreeUsed ? ' (includes uncommitted changes)' : '';
+    this.item.tooltip = `Conflict Watcher: No conflicts detected${suffix}`;
   }
 
-  private setConflicts(count: number): void {
+  private setConflicts(count: number, dirtyTreeUsed?: boolean): void {
     this.item.text = `$(warning) ${count} conflict${count !== 1 ? 's' : ''}`;
     this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
-    this.item.tooltip = `Conflict Watcher: ${count} file${count !== 1 ? 's' : ''} with conflicts`;
+    const suffix = dirtyTreeUsed ? ' (includes uncommitted changes)' : '';
+    this.item.tooltip = `Conflict Watcher: ${count} file${count !== 1 ? 's' : ''} with conflicts${suffix}`;
   }
 
   private setError(message?: string): void {

@@ -163,9 +163,9 @@ export async function gitUpstream(cwd: string): Promise<GitExecResult> {
   return exec(["rev-parse", "@{upstream}"], cwd, [0, 128]);
 }
 
-/** Fast-forward-only merge from the current branch's upstream. Exit 0 = success, 1/128 = can't fast-forward. */
-export async function gitMergeFF(cwd: string): Promise<GitExecResult> {
-  return exec(["merge", "--ff-only", "@{upstream}"], cwd, [0, 1, 128]);
+/** Rebase current branch onto its upstream, auto-stashing any local changes. Exit 0 = success, 1/128 = rebase failed. */
+export async function gitPullRebase(cwd: string): Promise<GitExecResult> {
+  return exec(["pull", "--rebase", "--autostash"], cwd, [0, 1, 128]);
 }
 
 /** Returns oneline log of commits reachable from `until` but not from `since`, scoped to a file. */
@@ -179,6 +179,11 @@ export async function gitLog(
     ['log', '--oneline', '--no-decorate', `${since}..${until}`, '--', filepath],
     cwd,
   );
+}
+
+/** Creates a temporary commit from the working tree state. No side effects — does not mutate index, working tree, or stash list. */
+export async function gitStashCreate(cwd: string): Promise<GitExecResult> {
+  return exec(["stash", "create"], cwd);
 }
 
 /** Counts commits reachable from `to` but not from `from`. */

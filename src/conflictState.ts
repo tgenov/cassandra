@@ -9,6 +9,8 @@ export interface ConflictSnapshot {
   errorMessage?: string;
   conflictFiles: ConflictFileEntry[];
   toplevelTreeOid: string;
+  /** True when the check used uncommitted working tree state instead of HEAD. */
+  dirtyTreeUsed?: boolean;
 }
 
 export interface StateChange {
