@@ -2,7 +2,7 @@
   "name": "cassandra",
   "displayName": "Cassandra",
   "description": "Foresees merge conflicts in real time against a configurable remote branch using git merge-tree",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "tgenov",
   "engines": {
     "vscode": "^1.80.0"
@@ -83,7 +83,7 @@
         "conflictWatcher.autoPull": {
           "type": "boolean",
           "default": false,
-          "description": "Automatically fast-forward pull from the remote branch after each fetch. Only pulls when the working tree is clean and fast-forward is possible."
+          "description": "Automatically fast-forward the current branch from its upstream after each fetch. Only pulls when the working tree is clean, an upstream is configured, and fast-forward is possible."
         }
       }
     }

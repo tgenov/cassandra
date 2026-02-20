@@ -153,13 +153,19 @@ export async function gitStatus(cwd: string): Promise<GitExecResult> {
   return exec(["status", "--porcelain"], cwd);
 }
 
-/** Fast-forward-only merge. Exit 0 = success, 1/128 = can't fast-forward. */
-export async function gitMergeFF(
-  cwd: string,
-  remote: string,
-  branch: string,
-): Promise<GitExecResult> {
-  return exec(["merge", "--ff-only", `${remote}/${branch}`], cwd, [0, 1, 128]);
+/** Returns the working tree status for tracked files only (empty stdout = clean for merge). */
+export async function gitStatusTracked(cwd: string): Promise<GitExecResult> {
+  return exec(["status", "--porcelain", "-uno"], cwd);
+}
+
+/** Resolves the current branch's upstream ref. Exit 128 = no upstream configured. */
+export async function gitUpstream(cwd: string): Promise<GitExecResult> {
+  return exec(["rev-parse", "@{upstream}"], cwd, [0, 128]);
+}
+
+/** Fast-forward-only merge from the current branch's upstream. Exit 0 = success, 1/128 = can't fast-forward. */
+export async function gitMergeFF(cwd: string): Promise<GitExecResult> {
+  return exec(["merge", "--ff-only", "@{upstream}"], cwd, [0, 1, 128]);
 }
 
 /** Returns oneline log of commits reachable from `until` but not from `since`, scoped to a file. */

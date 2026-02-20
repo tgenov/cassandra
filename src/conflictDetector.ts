@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { getConfig } from './config';
-import { gitVersion, gitFetch, gitRevParse, gitMergeBase, gitMergeTreeModern, gitMergeTreeLegacy, supportsModernMergeTree, gitStatus, gitMergeFF, gitRevListCount } from './gitOps';
+import { gitVersion, gitFetch, gitRevParse, gitMergeBase, gitMergeTreeModern, gitMergeTreeLegacy, supportsModernMergeTree, gitStatusTracked, gitUpstream, gitMergeFF, gitRevListCount } from './gitOps';
 import { parseModernMergeTree, parseLegacyMergeTree } from './mergeTreeParser';
 import { ConflictState } from './conflictState';
 import type { ConflictSnapshot, StateChange } from './conflictState';
@@ -105,24 +105,34 @@ export class ConflictDetector implements vscode.Disposable {
         return;
       }
 
-      // Step 3.5: Auto-pull (fast-forward only)
-      if (config.autoPull && head !== remote) {
+      // Step 3.5: Auto-pull (fast-forward current branch from its upstream)
+      if (config.autoPull) {
         try {
-          const statusResult = await gitStatus(this.cwd);
-          if (statusResult.stdout.trim() !== '') {
-            log('Auto-pull: working tree is dirty, skipping');
+          const upstreamResult = await gitUpstream(this.cwd);
+          if (upstreamResult.exitCode !== 0) {
+            log('Auto-pull: current branch has no upstream, skipping');
           } else {
-            const oldHead = head;
-            const mergeResult = await gitMergeFF(this.cwd, config.remote, config.branch);
-            if (mergeResult.exitCode === 0) {
-              const newHeadResult = await gitRevParse(this.cwd, 'HEAD');
-              head = newHeadResult.stdout.trim();
-              const countResult = await gitRevListCount(this.cwd, oldHead, head);
-              const commitCount = parseInt(countResult.stdout.trim(), 10) || 0;
-              log(`Auto-pull: fast-forwarded ${commitCount} commit(s), new HEAD: ${head}`);
-              this._onAutoPulled.fire({ commitCount, newHead: head });
+            const upstreamSha = upstreamResult.stdout.trim();
+            if (head === upstreamSha) {
+              // Already up to date, nothing to pull
             } else {
-              log('Auto-pull: cannot fast-forward, skipping');
+              const statusResult = await gitStatusTracked(this.cwd);
+              if (statusResult.stdout.trim() !== '') {
+                log('Auto-pull: tracked files have uncommitted changes, skipping');
+              } else {
+                const oldHead = head;
+                const mergeResult = await gitMergeFF(this.cwd);
+                if (mergeResult.exitCode === 0) {
+                  const newHeadResult = await gitRevParse(this.cwd, 'HEAD');
+                  head = newHeadResult.stdout.trim();
+                  const countResult = await gitRevListCount(this.cwd, oldHead, head);
+                  const commitCount = parseInt(countResult.stdout.trim(), 10) || 0;
+                  log(`Auto-pull: fast-forwarded ${commitCount} commit(s), new HEAD: ${head}`);
+                  this._onAutoPulled.fire({ commitCount, newHead: head });
+                } else {
+                  log('Auto-pull: cannot fast-forward, skipping');
+                }
+              }
             }
           }
         } catch (err) {
