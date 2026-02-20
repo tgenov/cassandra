@@ -2,7 +2,7 @@
   "name": "cassandra",
   "displayName": "Cassandra",
   "description": "Foresees merge conflicts in real time against a configurable remote branch using git merge-tree",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "publisher": "tgenov",
   "engines": {
     "vscode": "^1.80.0"
