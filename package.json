@@ -4,15 +4,23 @@
   "description": "Foresees merge conflicts in real time against a configurable remote branch using git merge-tree",
   "version": "0.2.0",
   "publisher": "tgenov",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tgenov/cassandra"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
   "icon": "images/icon.png",
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "activationEvents": [
     "workspaceContains:.git"
   ],
-  "extensionKind": ["workspace"],
+  "extensionKind": [
+    "workspace"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -84,7 +92,7 @@
         "conflictWatcher.autoPull": {
           "type": "boolean",
           "default": false,
-          "description": "Automatically fast-forward the current branch from its upstream after each fetch. Only pulls when the working tree is clean, an upstream is configured, and fast-forward is possible."
+          "description": "Automatically rebase the current branch onto its upstream after each fetch (with autostash). Only pulls when an upstream is configured."
         }
       }
     }
@@ -92,12 +100,15 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "package": "vsce package"
   },
   "devDependencies": {
     "@types/node": "^18.0.0",
     "@types/vscode": "^1.80.0",
     "@vscode/vsce": "^2.22.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^2.1.9"
   }
 }
