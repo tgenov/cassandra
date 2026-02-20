@@ -1,0 +1,102 @@
+{
+  "name": "cassandra",
+  "displayName": "Cassandra",
+  "description": "Foresees merge conflicts in real time against a configurable remote branch using git merge-tree",
+  "version": "0.1.0",
+  "publisher": "tgenov",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "icon": "images/icon.png",
+  "categories": ["Other"],
+  "activationEvents": [
+    "workspaceContains:.git"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "conflictWatcher.checkNow",
+        "title": "Conflict Watcher: Check Now"
+      },
+      {
+        "command": "conflictWatcher.showConflicts",
+        "title": "Conflict Watcher: Show Conflicts"
+      },
+      {
+        "command": "conflictWatcher.togglePause",
+        "title": "Conflict Watcher: Toggle Pause"
+      },
+      {
+        "command": "conflictWatcher.acceptVersion",
+        "title": "Conflict Watcher: Accept Version"
+      },
+      {
+        "command": "conflictWatcher.acceptOurs",
+        "title": "Accept Ours (keep this file)",
+        "icon": "$(arrow-left)"
+      },
+      {
+        "command": "conflictWatcher.acceptTheirs",
+        "title": "Accept Theirs (take incoming)",
+        "icon": "$(arrow-right)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "conflictWatcher.acceptOurs",
+          "group": "navigation",
+          "when": "conflictWatcher.diffViewActive"
+        },
+        {
+          "command": "conflictWatcher.acceptTheirs",
+          "group": "navigation",
+          "when": "conflictWatcher.diffViewActive"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Conflict Watcher",
+      "properties": {
+        "conflictWatcher.remote": {
+          "type": "string",
+          "default": "origin",
+          "description": "Git remote to check against"
+        },
+        "conflictWatcher.branch": {
+          "type": "string",
+          "default": "main",
+          "description": "Remote branch to check against"
+        },
+        "conflictWatcher.pollIntervalSeconds": {
+          "type": "number",
+          "default": 60,
+          "minimum": 10,
+          "description": "How often to check for conflicts (in seconds)"
+        },
+        "conflictWatcher.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable conflict watching"
+        },
+        "conflictWatcher.autoPull": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically fast-forward pull from the remote branch after each fetch. Only pulls when the working tree is clean and fast-forward is possible."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.80.0",
+    "@vscode/vsce": "^2.22.0",
+    "typescript": "^5.3.0"
+  }
+}
