@@ -55,6 +55,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // Wire up auto-pull notifications
   context.subscriptions.push(
     detector.onAutoPulled(({ commitCount }) => {
+      if (commitCount === 0) { return; }
       const msg = `Conflict Watcher: Auto-pulled ${commitCount} commit${commitCount !== 1 ? 's' : ''}`;
       log(msg);
       vscode.window.showInformationMessage(msg);
